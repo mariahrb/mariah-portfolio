@@ -1,0 +1,193 @@
+.root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.055) 0px,
+    rgba(0, 0, 0, 0.055) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+}
+
+.ui {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeUp 0.9s 0.5s both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.eyebrow {
+  font-family: var(--pixel);
+  font-size: clamp(7px, 1vw, 10px);
+  color: var(--sky);
+  letter-spacing: 4px;
+  margin-bottom: 14px;
+}
+
+.title {
+  font-family: var(--pixel);
+  font-size: clamp(30px, 6vw, 68px);
+  color: var(--gold);
+  text-align: center;
+  line-height: 1.5;
+  text-shadow: 4px 4px 0 #9a6800, 0 0 80px rgba(240, 192, 64, 0.35);
+  margin-bottom: 10px;
+}
+
+.sub {
+  font-family: var(--pixel);
+  font-size: clamp(7px, 1vw, 9px);
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 3px;
+  margin-bottom: 44px;
+}
+
+/* Mode toggle */
+.modeRow {
+  display: flex;
+  margin-bottom: 28px;
+}
+
+.modeBtn {
+  font-family: var(--pixel);
+  font-size: clamp(7px, 0.9vw, 10px);
+  padding: 14px 24px;
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: rgba(10, 10, 20, 0.6);
+  color: rgba(255, 255, 255, 0.4);
+  transition: all 0.2s;
+  letter-spacing: 1px;
+  backdrop-filter: blur(6px);
+}
+.modeBtn:first-child { border-right-width: 1px; }
+
+.modeBtnGame {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: rgba(240, 192, 64, 0.1);
+  box-shadow: 0 0 20px rgba(240, 192, 64, 0.2);
+}
+.modeBtnPro {
+  border-color: var(--sky);
+  color: var(--sky);
+  background: rgba(126, 200, 227, 0.1);
+  box-shadow: 0 0 20px rgba(126, 200, 227, 0.18);
+}
+
+/* Pro nav */
+.proNav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.4s ease;
+  margin-bottom: 0;
+}
+.proNavVisible {
+  max-height: 200px;
+  opacity: 1;
+  margin-bottom: 22px;
+}
+
+.proLink {
+  font-family: var(--pixel);
+  font-size: clamp(6px, 0.8vw, 9px);
+  padding: 9px 14px;
+  cursor: pointer;
+  border: 1px solid rgba(126, 200, 227, 0.3);
+  color: rgba(126, 200, 227, 0.7);
+  background: rgba(10, 10, 20, 0.5);
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+.proLink:hover {
+  border-color: var(--sky);
+  color: var(--sky);
+  background: rgba(126, 200, 227, 0.1);
+}
+
+/* CTAs */
+.ctaGame {
+  font-family: var(--pixel);
+  font-size: clamp(8px, 1vw, 11px);
+  padding: 16px 32px;
+  cursor: pointer;
+  background: var(--gold);
+  color: var(--dark);
+  border: none;
+  box-shadow: 4px 4px 0 #9a6800;
+  transition: all 0.1s;
+  letter-spacing: 1px;
+}
+.ctaGame:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #9a6800; }
+.ctaGame:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #9a6800; }
+
+.ctaPro {
+  font-family: var(--pixel);
+  font-size: clamp(8px, 1vw, 11px);
+  padding: 16px 32px;
+  cursor: pointer;
+  background: var(--sky);
+  color: var(--dark);
+  border: none;
+  box-shadow: 4px 4px 0 #2a7a9a;
+  transition: all 0.1s;
+  letter-spacing: 1px;
+}
+.ctaPro:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #2a7a9a; }
+.ctaPro:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #2a7a9a; }
+
+.version {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: rgba(255, 255, 255, 0.18);
+  letter-spacing: 2px;
+  z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.location {
+  position: fixed;
+  bottom: 18px;
+  right: 20px;
+  font-family: var(--pixel);
+  font-size: 7px;
+  color: rgba(255, 255, 255, 0.25);
+  letter-spacing: 1px;
+  z-index: 10;
+  pointer-events: none;
+}

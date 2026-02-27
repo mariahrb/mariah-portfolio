@@ -1,0 +1,36 @@
+:root {
+  --pixel:  'Press Start 2P', monospace;
+  --serif:  'Playfair Display', Georgia, serif;
+  --sans:   'DM Sans', sans-serif;
+  --dark:   #0e0e1c;
+  --darker: #080810;
+  --cream:  #faf7f0;
+  --warm:   #f5ede0;
+  --accent: #e8573a;
+  --gold:   #f0c040;
+  --sky:    #7ec8e3;
+  --mint:   #5ec4a0;
+  --lav:    #9b7ec8;
+  --text:   #1c1c2e;
+  --muted:  #888;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--dark);
+  font-family: var(--sans);
+}
+
+/* Scrollable overlays */
+.scroll-y { overflow-y: auto; }
+
+/* Phaser canvas */
+canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
