@@ -44,6 +44,14 @@ interface Building {
 const T  = 32;               // tile size px
 const WW = 50;               // world width  tiles
 const WH = 38;               // world height tiles
+const DLG_W = 340;
+const DLG_H_MIN = 88;
+const DLG_H_MAX = 180;
+const DLG_PAD_X = 12;
+const DLG_PAD_Y = 10;
+const PROMPT_H = 22;
+const PROMPT_MIN_W = 112;
+const PROMPT_MAX_W = 300;
 
 // Pixel colours
 const C = {
@@ -252,6 +260,7 @@ export class GameScene extends Phaser.Scene {
     this.checkProximity();
     this.updateDog();
     this.updateLighting(delta);
+    this.syncUI();
   }
 
   // ── GROUND ───────────────────────────────────────────────────────────────────
@@ -1086,13 +1095,18 @@ export class GameScene extends Phaser.Scene {
     if (!this.playerPhysics) return;
     const px = this.playerPhysics.x;
     const py = this.playerPhysics.y;
-    const DIST = 58;
+    const NPC_DIST = 44;
+    const BUILDING_DIST_Y = 46;
+    const BUILDING_DIST_X_PAD = 2;
 
     this.nearBuilding = null;
     for (const b of BUILDINGS) {
       const bx = b.tx * T + b.tw * T / 2;
       const by = (b.ty + b.th) * T;
-      if (Math.abs(px - bx) < b.tw * T / 2 + 4 && Math.abs(py - by) < DIST) {
+      if (
+        Math.abs(px - bx) < b.tw * T / 2 + BUILDING_DIST_X_PAD &&
+        Math.abs(py - by) < BUILDING_DIST_Y
+      ) {
         this.nearBuilding = b; break;
       }
     }
@@ -1102,7 +1116,7 @@ export class GameScene extends Phaser.Scene {
       const ctr = this.npcContainers.get(npc.id);
       const nx = ctr ? ctr.x : npc.x;
       const ny = ctr ? ctr.y : npc.y;
-      if (Phaser.Math.Distance.Between(px, py, nx, ny) < DIST) {
+      if (Phaser.Math.Distance.Between(px, py, nx, ny) < NPC_DIST) {
         this.nearNPC = npc; break;
       }
     }
@@ -1113,10 +1127,59 @@ export class GameScene extends Phaser.Scene {
       const label = this.nearNPC
         ? `[ E ] TALK TO ${this.nearNPC.name.toUpperCase()}`
         : `[ E ] ENTER ${this.nearBuilding!.label}`;
-      (this.promptBox.getAt(1) as Phaser.GameObjects.Text).setText(label);
-      this.promptBox.setPosition(
-        this.scale.width / 2,
-        this.scale.height - 52,
+      const promptLabel = this.promptBox.getAt(1) as Phaser.GameObjects.Text;
+      const promptBg = this.promptBox.getAt(0) as Phaser.GameObjects.Rectangle;
+      promptLabel.setText(label);
+      const nextW = Phaser.Math.Clamp(
+        Math.ceil(promptLabel.width + 18),
+        PROMPT_MIN_W,
+        PROMPT_MAX_W,
+      );
+      promptBg.setSize(nextW, PROMPT_H);
+      promptBg.setDisplaySize(nextW, PROMPT_H);
+      this.anchorUIToPlayer(
+        this.promptBox,
+        34,
+      );
+    }
+  }
+
+  // Place interaction UI relative to player and clamp to camera view.
+  private anchorUIToPlayer(
+    ui: Phaser.GameObjects.Container,
+    offsetY: number,
+  ) {
+    if (!this.playerPhysics) return;
+    const cam = this.cameras.main;
+    const b = ui.getBounds();
+    const halfW = Math.max(8, b.width / 2);
+    const halfH = Math.max(8, b.height / 2);
+
+    const x = Phaser.Math.Clamp(
+      this.playerPhysics.x,
+      cam.worldView.x + halfW + 6,
+      cam.worldView.right - halfW - 6,
+    );
+    const y = Phaser.Math.Clamp(
+      this.playerPhysics.y + offsetY,
+      cam.worldView.y + halfH + 6,
+      cam.worldView.bottom - halfH - 6,
+    );
+    ui.setPosition(x, y);
+    ui.setScale(1);
+  }
+
+  private syncUI() {
+    if (this.promptBox?.visible) {
+      this.anchorUIToPlayer(
+        this.promptBox,
+        34,
+      );
+    }
+    if (this.dlgBox?.visible) {
+      this.anchorUIToPlayer(
+        this.dlgBox,
+        102,
       );
     }
   }
@@ -1154,9 +1217,18 @@ export class GameScene extends Phaser.Scene {
     if (!tree) return;
     this.talked.add(id);
     this.activeDlg = { tree, lineId: tree.start };
-    this.renderDlg();
-    this.dlgBox.setVisible(true);
-    this.promptBox.setVisible(false);
+    try {
+      this.renderDlg();
+      this.dlgBox.setVisible(true);
+      this.promptBox.setVisible(false);
+    } catch (err) {
+      // Never keep controls locked when dialogue UI fails to render.
+      // eslint-disable-next-line no-console
+      console.error('Failed to render dialogue UI', err);
+      this.activeDlg = null;
+      this.dlgBox.setVisible(false);
+      this.promptBox.setVisible(false);
+    }
   }
 
   private renderDlg() {
@@ -1165,32 +1237,88 @@ export class GameScene extends Phaser.Scene {
     if (!line) { this.closeDlg(); return; }
 
     const box = this.dlgBox;
-    box.setPosition(
-      this.scale.width / 2,
-      this.scale.height - 110,
+    this.anchorUIToPlayer(
+      box,
+      102,
     );
-    (box.getAt(1) as Phaser.GameObjects.Text).setText(line.speaker);
-    (box.getAt(2) as Phaser.GameObjects.Text).setText(line.text);
+    const sp = box.getAt(1) as Phaser.GameObjects.Text;
+    const bd = box.getAt(2) as Phaser.GameObjects.Text;
+    const bg = box.getAt(0) as Phaser.GameObjects.Rectangle;
+    const innerW = DLG_W - DLG_PAD_X * 2;
+    sp.setText(line.speaker);
+    bd.setWordWrapWidth(innerW);
+    bd.setText(line.text);
 
     while (box.length > 3) box.removeAt(3, true);
 
     const choices = line.choices ?? [];
+    const interactiveLines: Phaser.GameObjects.Text[] = [];
+    const choiceStyle: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '6px',
+      color: '#f0c040',
+      align: 'left',
+      wordWrap: { width: innerW },
+      resolution: 2,
+      lineSpacing: 2,
+    };
+
     choices.forEach((ch, i) => {
-      const btn = this.add.text(0, 36 + i * 18, `▸ ${ch.text}`, {
-        fontFamily: '"Press Start 2P"', fontSize: '6px', color: '#f0c040',
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      const btn = this.add.text(0, 0, `▸ ${ch.text}`, choiceStyle)
+        .setOrigin(0, 0)
+        .setInteractive({ useHandCursor: true });
       btn.on('pointerover', () => btn.setColor('#ffffff'));
       btn.on('pointerout',  () => btn.setColor('#f0c040'));
       btn.on('pointerdown', () => this.pickChoice(ch));
       box.add(btn);
+      interactiveLines.push(btn);
     });
 
+    let continueBtn: Phaser.GameObjects.Text | null = null;
     if (!choices.length) {
-      const cont = this.add.text(0, 42, '[ E ] Continue', {
-        fontFamily: '"Press Start 2P"', fontSize: '6px', color: '#666',
-      }).setOrigin(0.5).setInteractive();
-      cont.on('pointerdown', () => this.closeDlg());
-      box.add(cont);
+      continueBtn = this.add.text(0, 0, '[ E ] Continue', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '6px',
+        color: '#666',
+        resolution: 2,
+        lineSpacing: 2,
+      }).setOrigin(0.5, 0).setInteractive();
+      continueBtn.on('pointerdown', () => this.closeDlg());
+      box.add(continueBtn);
+      interactiveLines.push(continueBtn);
+    }
+
+    // Resize background height to content so text never spills out.
+    const choiceH = interactiveLines.reduce((acc, item, idx) => {
+      const gap = idx < interactiveLines.length - 1 ? 5 : 0;
+      return acc + item.height + gap;
+    }, 0);
+    const contentH = sp.height + 6 + bd.height + (interactiveLines.length ? 8 + choiceH : 0);
+    const nextH = Phaser.Math.Clamp(
+      Math.ceil(contentH + DLG_PAD_Y * 2),
+      DLG_H_MIN,
+      DLG_H_MAX,
+    );
+
+    bg.setSize(DLG_W, nextH);
+    bg.setDisplaySize(DLG_W, nextH);
+
+    const left = -DLG_W / 2 + DLG_PAD_X;
+    let y = -nextH / 2 + DLG_PAD_Y;
+
+    sp.setPosition(left, y).setOrigin(0, 0);
+    y += sp.height + 6;
+
+    bd.setPosition(left, y).setOrigin(0, 0);
+    y += bd.height + 8;
+
+    if (continueBtn) {
+      continueBtn.setPosition(0, y + 2);
+    } else {
+      interactiveLines.forEach((item) => {
+        item.setPosition(left, y);
+        y += item.height + 5;
+      });
     }
   }
 
@@ -1214,30 +1342,39 @@ export class GameScene extends Phaser.Scene {
   // ── UI ────────────────────────────────────────────────────────────────────────
 
   private buildDlgBox() {
-    const W = 340, H = 90;
+    const W = DLG_W;
+    const H = DLG_H_MIN;
     const bg = this.add.rectangle(0, 0, W, H, 0x0e0e1c, 0.96).setStrokeStyle(2, 0xf0c040);
-    const sp = this.add.text(-W / 2 + 12, -H / 2 + 9, '', {
-      fontFamily: '"Press Start 2P"', fontSize: '7px', color: '#f0c040',
-    });
-    const bd = this.add.text(0, -6, '', {
-      fontFamily: '"Press Start 2P"', fontSize: '6px', color: '#fff',
-      wordWrap: { width: W - 28 }, align: 'center',
-    }).setOrigin(0.5);
+    const sp = this.add.text(0, 0, '', {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '6px',
+      color: '#f0c040',
+      resolution: 2,
+      lineSpacing: 2,
+    }).setOrigin(0, 0);
+    const bd = this.add.text(0, 0, '', {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '6px',
+      color: '#fff',
+      wordWrap: { width: W - DLG_PAD_X * 2 },
+      align: 'left',
+      lineSpacing: 2,
+      resolution: 2,
+    }).setOrigin(0, 0);
     this.dlgBox = this.add.container(0, 0, [bg, sp, bd]);
-    this.dlgBox.setDepth(2002).setScrollFactor(0).setVisible(false);
+    this.dlgBox.setDepth(2002).setVisible(false);
   }
 
   private buildPrompt() {
-    const bg = this.add.rectangle(0, 0, 240, 24, 0x0e0e1c, 0.9).setStrokeStyle(1.5, 0xf0c040);
+    const bg = this.add.rectangle(0, 0, 180, PROMPT_H, 0x0e0e1c, 0.9).setStrokeStyle(1.5, 0xf0c040);
     const lb = this.add.text(0, 0, '', {
-      fontFamily: '"Press Start 2P"', fontSize: '7px', color: '#fff',
+      fontFamily: '"Press Start 2P"',
+      fontSize: '6px',
+      color: '#fff',
+      resolution: 2,
     }).setOrigin(0.5);
     this.promptBox = this.add.container(0, 0, [bg, lb]);
-    this.promptBox.setDepth(2001).setScrollFactor(0).setVisible(false);
-    this.tweens.add({
-      targets: this.promptBox, y: '-=5',
-      yoyo: true, repeat: -1, duration: 500, ease: 'Sine.easeInOut',
-    });
+    this.promptBox.setDepth(2001).setVisible(false);
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────────────────

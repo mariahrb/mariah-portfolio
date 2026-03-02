@@ -8,6 +8,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# Vite
+.vite/
+.vite/deps/
+
 # Environment variables
 .env
 .env.local

@@ -5,7 +5,7 @@ import styles from './PageOverlay.module.css';
 const PAGE_ORDER: PageKey[] = ['home', 'devlab', 'studio', 'innovation', 'library', 'townhall'];
 const PAGE_LABELS: Record<NonNullable<PageKey>, string> = {
   home: '🏠 About', devlab: '💻 Projects', studio: '🎨 Design',
-  innovation: '🌱 Startups', library: '📜 Resume', townhall: '📬 Contact',
+  innovation: '🌱 Leadership', library: '📜 Resume', townhall: '📬 Contact',
 };
 const PAGE_TYPE: Record<NonNullable<PageKey>, 'default' | 'design' | 'dark'> = {
   home: 'default', devlab: 'default', studio: 'design',
@@ -22,16 +22,38 @@ interface Props {
 export function PageOverlay({ pageKey, source, onClose, onNavigate }: Props) {
   const type  = PAGE_TYPE[pageKey];
   const isDark = type === 'dark';
+  const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Close on Escape
+  // Close on Escape, arrow keys for page navigation
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      const currentIdx = PAGE_ORDER.indexOf(pageKey);
+      if (e.key === 'ArrowRight' && currentIdx < PAGE_ORDER.length - 1) {
+        onNavigate(PAGE_ORDER[currentIdx + 1]);
+      }
+      if (e.key === 'ArrowLeft' && currentIdx > 0) {
+        onNavigate(PAGE_ORDER[currentIdx - 1]);
+      }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, onNavigate, pageKey]);
+
+  // Focus trap
+  useEffect(() => {
+    overlayRef.current?.focus();
+  }, []);
 
   return (
-    <div className={`${styles.overlay} ${styles[type]}`}>
+    <div
+      ref={overlayRef}
+      className={`${styles.overlay} ${styles[type]}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${pageKey} page`}
+      tabIndex={-1}
+    >
       <div className={styles.inner}>
         {/* Top bar */}
         <div className={styles.topBar}>
@@ -51,6 +73,7 @@ export function PageOverlay({ pageKey, source, onClose, onNavigate }: Props) {
                 {PAGE_LABELS[k]}
               </button>
             ))}
+            <span className={styles.keyboardHint}>← → to navigate</span>
           </div>
         </div>
 
@@ -81,6 +104,9 @@ function PageContent({ pageKey, isDark, onNavigate }: {
 
 // ─── HOME ─────────────────────────────────────────────────────────────────────
 function HomePage({ onNavigate }: { onNavigate: (k: PageKey) => void }) {
+  const [animate, setAnimate] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setAnimate(true), 120); return () => clearTimeout(t); }, []);
+
   const skills = [
     { label: 'Go / Python / SQL',             pct: 92, color: 'var(--accent)' },
     { label: 'Data & Automation Workflows',   pct: 90, color: 'var(--mint)' },
@@ -101,7 +127,7 @@ function HomePage({ onNavigate }: { onNavigate: (k: PageKey) => void }) {
           <div key={s.label} className={styles.skillItem}>
             <div className={styles.skillLabel}><span>{s.label}</span><span>{s.pct}%</span></div>
             <div className={styles.skillBar}>
-              <div className={styles.skillFill} style={{ width: `${s.pct}%`, background: s.color }} />
+              <div className={styles.skillFill} style={{ width: animate ? `${s.pct}%` : '0%', background: s.color }} />
             </div>
           </div>
         ))}
@@ -115,28 +141,131 @@ function HomePage({ onNavigate }: { onNavigate: (k: PageKey) => void }) {
 }
 
 // ─── DEV LAB ──────────────────────────────────────────────────────────────────
-const PROJECTS = [
-  { n:'01', t:'Jeeves Internship', d:'Developed Go-based integrations and automation workflows, saving 10+ hours/week and supporting faster strategic decisions.', tags:['Go','Python','Google Colab'], c:'var(--accent)' },
-  { n:'02', t:'Stone Co Internship', d:'Built a Go-based Cronjob with REST APIs to automate government financial reports and cut delivery time from days to hours.', tags:['Go','REST APIs','BigQuery'], c:'var(--mint)'   },
-  { n:'03', t:'Genetic Variants Research', d:'Performed Python-based analysis for GWAS and predicted links between genetic variants and disease severity.', tags:['Python','Data Analysis','Research'], c:'var(--lav)'    },
-  { n:'04', t:'Smart Farming System', d:'Built an IoT + ML system and reduced nutrient runoff by 71% with predictive analytics.', tags:['Machine Learning','IoT','Python'], c:'var(--gold)' },
+type DevLabProject = {
+  n: string;
+  org: string;
+  role: string;
+  date: string;
+  summary: string;
+  highlights: string[];
+  tags: string[];
+  c: string;
+};
+
+const PROJECTS: DevLabProject[] = [
+  {
+    n: '01',
+    org: 'Jeeves',
+    role: 'Tech Intern — Strategy & Ops',
+    date: '2025-Present',
+    summary: 'Built internal backend tooling and automation systems supporting global financial operations.',
+    highlights: [
+      'Reduced 10+ hours/week of manual reporting via reproducible Python (pandas) pipelines.',
+      'Developed Go integrations improving financial data consistency and decision speed.',
+      'Designed end-to-end HubSpot to n8n automation for document generation and delivery, eliminating manual sales workflows and enabling scalable client communication.',
+    ],
+    tags: ['Go', 'Python', 'Automation', 'Systems Integration', 'Workflow Orchestration'],
+    c: 'var(--accent)',
+  },
+  {
+    n: '02',
+    org: 'Stone Co',
+    role: 'Software Engineering Intern — Backend',
+    date: '2025',
+    summary: 'Built a production-grade Go service automating government-mandated financial reporting.',
+    highlights: [
+      'Replaced multi-day manual workflows with compliant reports generated in hours.',
+      'Designed REST APIs and BigQuery ETL pipelines for high-volume transactional processing.',
+      'Achieved 85%+ test coverage, implemented CI/CD with Argo, and improved observability with Datadog.',
+    ],
+    tags: ['Go', 'REST APIs', 'BigQuery', 'Clean Architecture', 'CI/CD', 'Observability'],
+    c: 'var(--mint)',
+  },
+  {
+    n: '03',
+    org: 'Robotics — Human-Robot Interaction Research',
+    role: 'Research Project',
+    date: 'Academic Research',
+    summary: 'Researched how protective behavioral adaptations affect the treatment of female-presenting robots in human-robot interactions.',
+    highlights: [
+      'Designed and implemented adaptive defensive behaviors for boundary-setting responses.',
+      'Evaluated whether those responses reduced mistreatment in controlled interaction studies.',
+      'Contributed to research on gender bias and ethical AI system design.',
+    ],
+    tags: ['Robotics', 'Behavioral Systems', 'Python', 'Experimental Design'],
+    c: 'var(--lav)',
+  },
+  {
+    n: '04',
+    org: 'Smart Farming System',
+    role: 'ML + IoT · NYAS',
+    date: 'Applied ML Project',
+    summary: 'Designed an end-to-end IoT and ML system for environmental optimization.',
+    highlights: [
+      'Built real-time sensor ingestion pipelines.',
+      'Implemented regression models reducing nutrient runoff by 71%.',
+    ],
+    tags: ['Python', 'Machine Learning', 'IoT Systems', 'Data Modeling'],
+    c: 'var(--gold)',
+  },
+  {
+    n: '05',
+    org: 'GWAS Research',
+    role: 'Genomics + ML',
+    date: 'Research',
+    summary: 'Analyzed large-scale genomic datasets to identify disease severity associations.',
+    highlights: [
+      'Built ML models on high-dimensional biological data.',
+      'Applied statistical validation for predictive reliability.',
+    ],
+    tags: ['Python', 'Data Science', 'ML', 'Statistical Modeling'],
+    c: 'var(--accent)',
+  },
 ];
 
 function DevLabPage() {
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => {
+        if (e.isIntersecting) {
+          (e.target as HTMLElement).style.opacity = '1';
+          (e.target as HTMLElement).style.transform = 'translateY(0)';
+        }
+      }),
+      { threshold: 0.1 }
+    );
+    cardRefs.current.forEach(el => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div>
       <p className={styles.tag}>// DEV LAB</p>
       <h1 className={styles.h1}>Engineering<br />Projects.</h1>
       <div className={styles.rule} />
-      <p className={styles.lead}>Real systems. Real users. Real impact.</p>
-      <div className={styles.grid}>
-        {PROJECTS.map(p => (
-          <div key={p.n} className={styles.card} style={{ '--bar': p.c } as React.CSSProperties}>
-            <div className={styles.cardNum} style={{ color: p.c }}>{p.n}</div>
-            <div className={styles.cardTitle}>{p.t}</div>
-            <div className={styles.cardBody}>{p.d}</div>
+      <p className={styles.lead}>Production backend, applied ML, and research systems with measurable outcomes.</p>
+      <div className={`${styles.grid} ${styles.devLabGrid}`}>
+        {PROJECTS.map((p, i) => (
+          <article
+            key={p.n}
+            ref={el => { cardRefs.current[i] = el; }}
+            className={`${styles.card} ${styles.devLabCard}`}
+            style={{ '--bar': p.c, opacity: 0, transform: 'translateY(18px)', transition: 'opacity 0.5s ease, transform 0.5s ease', transitionDelay: `${i * 80}ms` } as React.CSSProperties}
+          >
+            <div className={styles.devLabCardTop}>
+              <div className={styles.cardNum} style={{ color: p.c }}>{p.n}</div>
+              <span className={styles.devLabDate}>{p.date}</span>
+            </div>
+            <div className={styles.cardTitle}>{p.org}</div>
+            <div className={styles.devLabRole}>{p.role}</div>
+            <div className={styles.cardBody}>{p.summary}</div>
+            <ul className={styles.devLabHighlights}>
+              {p.highlights.map((h) => <li key={h}>{h}</li>)}
+            </ul>
             <div className={styles.tags}>{p.tags.map(t => <span key={t} className={styles.tag2}>{t}</span>)}</div>
-          </div>
+          </article>
         ))}
       </div>
     </div>
@@ -188,7 +317,7 @@ const PORTFOLIO_SECTIONS: StudioItem[] = [
   },
   {
     n: '02',
-    t: 'App Design 1',
+    t: 'App Design for Innovation Challenge',
     d: '5-frame app flow carousel: onboarding, dashboard, learning, quiz, and ranking screens.',
     tags: ['Figma (5+ years)', 'UI/UX', 'App Flow Carousel'],
     focus: [
@@ -228,7 +357,6 @@ const PORTFOLIO_SECTIONS: StudioItem[] = [
       { label: 'Explainer 14', src: '/studio/14.png' },
       { label: 'Explainer 15', src: '/studio/15.png' },
       { label: 'Explainer 16', src: '/studio/16.png' },
-      { label: 'Explainer 17', src: '/studio/17.png' },
     ],
   },
   {
@@ -520,29 +648,127 @@ function StudioSingle({ frame, onZoom }: { frame?: StudioFrame; onZoom: (frame?:
 }
 
 // ─── INNOVATION ───────────────────────────────────────────────────────────────
-const STARTUPS = [
-  { n:'01', t:'Vice President · Brazil Conference', d:'Led social impact programs, including AI4Good, a 5-week mentorship supporting AI solutions for climate and disaster management.', tags:['Leadership','AI4Good','Programs'], c:'var(--gold)' },
-  { n:'02', t:'Operations Leadership', d:'Oversaw program logistics and operations across initiatives, engaging thousands of participants nationwide.', tags:['Operations','Execution','Scale'], c:'var(--mint)' },
-  { n:'03', t:'Student-Led Impact', d:'Enabled top participants to present at Brazil’s largest student-led international conference.', tags:['Community','Public Service','Education'], c:'var(--lav)' },
+type InnovationItem = {
+  n: string;
+  org: string;
+  role: string;
+  date: string;
+  summary: string;
+  highlights: string[];
+  tags: string[];
+  c: string;
+};
+
+const INNOVATION_PROJECTS: InnovationItem[] = [
+  {
+    n: '01',
+    org: 'Meta Consultoria (Junior Enterprise)',
+    role: 'Innovation Manager',
+    date: '2023-2024',
+    summary: 'Led strategic expansion into renewable energy and startup consulting, driving measurable revenue growth and organizational transformation.',
+    highlights: [
+      'Positioned photovoltaic consulting services, contributing to 21%+ of total annual revenue.',
+      'Built and scaled the company\'s first startup-focused consulting vertical; trained and led a team of 3 analysts.',
+      'Revitalized innovation culture through structured internal programming, increasing engagement to 35+ active members weekly.',
+    ],
+    tags: ['Innovation Strategy', 'Renewable Energy', 'Startup Consulting', 'Team Leadership'],
+    c: 'var(--gold)',
+  },
+  {
+    n: '02',
+    org: 'Brazil Conference at Harvard & MIT',
+    role: 'Vice President',
+    date: 'Leadership',
+    summary: 'Lead social impact and technology programs at Brazil\'s largest student-led international conference.',
+    highlights: [
+      'Scaled AI4Good, a 5-week AI mentorship program focused on climate disaster solutions.',
+      'Oversee operations and logistics across 6 national initiatives, engaging thousands of participants.',
+      'Enable top founders and researchers to present on an international stage.',
+    ],
+    tags: ['AI4Good', 'Operations', 'Mentorship', 'Tech for Social Impact'],
+    c: 'var(--mint)',
+  },
+  {
+    n: '03',
+    org: 'THEIA International',
+    role: 'Youth for Circular Future',
+    date: '2021-2023',
+    summary: 'Contributed to global sustainability initiatives under a UNESCO Best Practice partner.',
+    highlights: [
+      'Collaborated with circular economy leaders to launch environmental awareness campaigns.',
+      'Co-led Action for Happy Kids, impacting youth across multiple continents through empowerment programs.',
+    ],
+    tags: ['Circular Economy', 'Sustainability', 'Global Programs', 'Youth Empowerment'],
+    c: 'var(--lav)',
+  },
+];
+
+const INNOVATION_AWARDS = [
+  'Selected as 1 of 20 scholars (1,000+ applicants) for a fully funded Brazil at Silicon Valley program - Fundacao Estudar',
+  'Gold Medal - National Science Olympiad',
+  'Gold Medal - Brazilian Astronomy & Astrophysics Olympiad',
+  '3rd Place - Brazilian Innovation Marathon (Young Scientists Fair)',
 ];
 
 function InnovationPage() {
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => {
+        if (e.isIntersecting) {
+          (e.target as HTMLElement).style.opacity = '1';
+          (e.target as HTMLElement).style.transform = 'translateY(0)';
+        }
+      }),
+      { threshold: 0.08 }
+    );
+    cardRefs.current.forEach(el => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div>
       <p className={`${styles.tag} ${styles.tagGold}`}>// INNOVATION CENTER</p>
-      <h1 className={`${styles.h1} ${styles.h1Light}`}>Startup &<br />Impact.</h1>
+      <h1 className={`${styles.h1} ${styles.h1Light}`}>Leadership &<br />Impact.</h1>
       <div className={`${styles.rule} ${styles.ruleGold}`} />
-      <p className={`${styles.lead} ${styles.leadLight}`}>Ideas turned into real things. Some shipped. All worth building.</p>
-      <div className={styles.grid}>
-        {STARTUPS.map(p => (
-          <div key={p.n} className={`${styles.card} ${styles.cardDark}`} style={{ '--bar': p.c } as React.CSSProperties}>
-            <div className={styles.cardNum} style={{ color: p.c }}>{p.n}</div>
-            <div className={`${styles.cardTitle} ${styles.cardTitleLight}`}>{p.t}</div>
-            <div className={`${styles.cardBody} ${styles.cardBodyLight}`}>{p.d}</div>
-            <div className={styles.tags}>{p.tags.map(t => <span key={t} className={`${styles.tag2} ${styles.tag2Dark}`}>{t}</span>)}</div>
-          </div>
+      <p className={`${styles.lead} ${styles.leadLight}`}>Programs, operations, and innovation initiatives with measurable outcomes at scale.</p>
+      <div className={`${styles.grid} ${styles.innovationGrid}`}>
+        {INNOVATION_PROJECTS.map((p, i) => (
+          <article
+            key={p.n}
+            ref={el => { cardRefs.current[i] = el; }}
+            className={`${styles.card} ${styles.cardDark} ${styles.innovationCard}`}
+            style={{ '--bar': p.c, opacity: 0, transform: 'translateY(18px)', transition: 'opacity 0.5s ease, transform 0.5s ease', transitionDelay: `${i * 100}ms` } as React.CSSProperties}
+          >
+            <div className={styles.innovationCardTop}>
+              <div className={styles.cardNum} style={{ color: p.c }}>{p.n}</div>
+              <span className={styles.innovationDate}>{p.date}</span>
+            </div>
+            <div className={`${styles.cardTitle} ${styles.cardTitleLight}`}>{p.org}</div>
+            <div className={styles.innovationRole}>{p.role}</div>
+            <div className={`${styles.cardBody} ${styles.cardBodyLight}`}>{p.summary}</div>
+            <ul className={styles.innovationHighlights}>
+              {p.highlights.map((h) => <li key={h}>{h}</li>)}
+            </ul>
+            <div className={styles.tags}>{p.tags.map((t) => <span key={t} className={`${styles.tag2} ${styles.tag2Dark}`}>{t}</span>)}</div>
+          </article>
         ))}
       </div>
+      <section className={styles.awardsSection}>
+        <div className={styles.awardsTitleRow}>
+          <h2 className={styles.awardsTitle}>Awards</h2>
+          <span className={styles.awardsRule} />
+        </div>
+        <div className={styles.awardsGrid}>
+          {INNOVATION_AWARDS.map((award, idx) => (
+            <article key={award} className={styles.awardCard}>
+              <span className={styles.awardBadge}>#{idx + 1}</span>
+              <p>{award}</p>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -578,19 +804,40 @@ function LibraryPage() {
 
 // ─── TOWN HALL ────────────────────────────────────────────────────────────────
 function TownHallPage() {
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+    setTimeout(() => {
+      setSending(false);
+      setSent(true);
+    }, 900);
+  };
+
   return (
     <div>
       <p className={styles.tag}>// TOWN HALL</p>
       <h1 className={styles.h1}>Let's<br />Connect.</h1>
       <div className={styles.rule} />
       <p className={styles.lead}>Tampa, FL · Open to internships, backend engineering, and data-focused opportunities.</p>
-      <form className={styles.form} onSubmit={e => { e.preventDefault(); alert('Message sent! (demo)'); }}>
-        <input type="text"  placeholder="Your name" required />
-        <input type="email" placeholder="Email address" required />
-        <input type="text"  placeholder="Company / Role (optional)" />
-        <textarea rows={4}  placeholder="What's on your mind?" required />
-        <button type="submit" className={styles.btnPrimary}>SEND MESSAGE ▶</button>
-      </form>
+      {sent ? (
+        <div className={styles.successState}>
+          <span className={styles.successIcon}>✓</span>
+          <p className={styles.successMsg}>Message sent! I'll get back to you soon.</p>
+        </div>
+      ) : (
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <input type="text"  placeholder="Your name" required />
+          <input type="email" placeholder="Email address" required />
+          <input type="text"  placeholder="Company / Role (optional)" />
+          <textarea rows={4}  placeholder="What's on your mind?" required />
+          <button type="submit" className={styles.btnPrimary} disabled={sending}>
+            {sending ? 'SENDING…' : 'SEND MESSAGE ▶'}
+          </button>
+        </form>
+      )}
       <div className={styles.socialRow}>
         <a href="mailto:mariahrangelbarreto@gmail.com" className={styles.socialLink}>mariahrangelbarreto@gmail.com ↗</a>
         <a href="https://linkedin.com/mariahbarreto" target="_blank" rel="noreferrer" className={styles.socialLink}>linkedin.com/mariahbarreto ↗</a>
