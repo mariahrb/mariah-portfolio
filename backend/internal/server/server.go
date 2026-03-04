@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -66,13 +68,27 @@ func New() *gin.Engine {
 
 	// ── SERVE FRONTEND BUILD ──────────────────────────────
 	// In production, Go serves the compiled React/Vite build
-	r.Static("/assets", "./frontend/dist/assets")
-	r.Static("/studio", "./frontend/dist/studio")
-	r.StaticFile("/portrait.png", "./frontend/dist/portrait.png")
-	r.StaticFile("/Mariah_Barreto_Resume.pdf", "./frontend/dist/Mariah_Barreto_Resume.pdf")
-	r.StaticFile("/mariah-valley-v3.html", "./frontend/dist/mariah-valley-v3.html")
+	distRoot := filepath.Clean("./frontend/dist")
 	r.NoRoute(func(c *gin.Context) {
-		c.File("./frontend/dist/index.html")
+		reqPath := filepath.Clean(c.Request.URL.Path)
+
+		// Never treat API-like paths as frontend files.
+		if strings.HasPrefix(reqPath, "/api/") || reqPath == "/api" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+
+		// Candidate file inside dist; serve it if it exists and isn't a directory.
+		candidate := filepath.Join(distRoot, reqPath)
+		if strings.HasPrefix(candidate, distRoot) {
+			if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+				c.File(candidate)
+				return
+			}
+		}
+
+		// SPA fallback
+		c.File(filepath.Join(distRoot, "index.html"))
 	})
 
 	return r
