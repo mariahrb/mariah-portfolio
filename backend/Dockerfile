@@ -1,24 +1,25 @@
-# ── Build stage ──────────────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+# ── Go build stage ────────────────────────────────────────────────────────────
+FROM golang:1.24-alpine AS go-builder
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy only Go module files from backend
+# Copy module files first for better layer caching.
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-# Copy backend source code
-COPY backend/. .
-
-# Ensure resume asset path exists for API route /api/v1/resume
-RUN mkdir -p /app/assets \
-  && if [ -f "/app/frontend/dist/Mariah_Barreto_Resume.pdf" ]; then cp "/app/frontend/dist/Mariah_Barreto_Resume.pdf" "/app/assets/resume.pdf"; fi
-
-# Build the Go server with deterministic module resolution.
-# Use lower-memory compiler settings for constrained CI builders.
-# "nomsgpack" drops optional Gin msgpack binding to reduce compile surface.
+# Copy backend source and compile.
+COPY backend/. ./
 RUN CGO_ENABLED=0 GOOS=linux GOMAXPROCS=1 GOMEMLIMIT=512MiB \
   go build -v -p=1 -tags=nomsgpack -mod=readonly -ldflags="-w -s" -o /portfolio ./cmd/server
+
+# ── Frontend build stage ──────────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Build frontend from source so /frontend/dist always exists in CI.
+COPY frontend/. ./
+RUN npm install && npm run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM alpine:3.19
@@ -26,12 +27,16 @@ FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
-# Copy Go binary and assets
-COPY --from=builder /portfolio .
-COPY --from=builder /app/assets ./assets
+RUN mkdir -p /app/assets /app/frontend/dist
 
-# Copy frontend build if you produced it in CI
-COPY --from=builder /app/frontend/dist ./frontend/dist
+# Copy backend binary.
+COPY --from=go-builder /portfolio ./portfolio
+
+# Copy built frontend.
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+# Keep resume endpoint path used by backend (/api/v1/resume).
+COPY --from=frontend-builder /app/frontend/dist/Mariah_Barreto_Resume.pdf ./assets/resume.pdf
 
 EXPOSE 8080
 ENV ENV=production
