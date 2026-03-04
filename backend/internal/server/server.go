@@ -88,6 +88,9 @@ func New() *gin.Engine {
 		}
 
 		// SPA fallback
+		c.Header("Cache-Control", "no-store, max-age=0")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
 		c.File(filepath.Join(distRoot, "index.html"))
 	})
 

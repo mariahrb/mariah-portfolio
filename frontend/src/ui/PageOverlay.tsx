@@ -369,7 +369,7 @@ const PORTFOLIO_SECTIONS: StudioItem[] = [
     frameMode: 'phone',
     theme: 'paper',
     layout: 'right',
-    frames: [{ label: 'Cartilha do Projetista - AI4GOOD', src: '/studio/Cartilha do Projetista - AI4GOOD.pdf', format: 'a4' }],
+    frames: [{ label: 'Cartilha do Projetista - AI4GOOD', src: '/studio/Cartilha-do-Projetista-AI4GOOD.pdf', format: 'a4' }],
   },
   {
     n: '03',
@@ -429,7 +429,7 @@ const PORTFOLIO_SECTIONS: StudioItem[] = [
     frameMode: 'phone',
     theme: 'paper',
     layout: 'left',
-    frames: [{ label: 'Academia de Inovacao Edital', src: '/studio/Edital da Academia de Inovação.pdf', format: 'a4' }],
+    frames: [{ label: 'Academia de Inovacao Edital', src: '/studio/Edital-da-Academia-de-Inovacao.pdf', format: 'a4' }],
   },
 ];
 
@@ -749,7 +749,7 @@ const INNOVATION_PROJECTS: InnovationItem[] = [
     c: 'var(--gold)',
     resource: {
       label: 'View Academia de Inovacao Edital',
-      href: '/studio/Edital da Academia de Inovação.pdf',
+      href: '/studio/Edital-da-Academia-de-Inovacao.pdf',
     },
   },
   {
