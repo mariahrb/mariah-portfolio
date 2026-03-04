@@ -19,7 +19,7 @@ WORKDIR /app/frontend
 
 # Build frontend from source so /frontend/dist always exists in CI.
 COPY frontend/. ./
-RUN npm install && npm run build
+RUN mkdir -p /app/backend/frontend && npm install && npm run build
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM alpine:3.19
@@ -33,10 +33,11 @@ RUN mkdir -p /app/assets /app/frontend/dist
 COPY --from=go-builder /portfolio ./portfolio
 
 # Copy built frontend.
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+# Vite outDir is configured as ../backend/frontend/dist (see frontend/vite.config.ts).
+COPY --from=frontend-builder /app/backend/frontend/dist ./frontend/dist
 
 # Keep resume endpoint path used by backend (/api/v1/resume).
-COPY --from=frontend-builder /app/frontend/dist/Mariah_Barreto_Resume.pdf ./assets/resume.pdf
+COPY --from=frontend-builder /app/backend/frontend/dist/Mariah_Barreto_Resume.pdf ./assets/resume.pdf
 
 EXPOSE 8080
 ENV ENV=production
