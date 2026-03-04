@@ -10,8 +10,9 @@ RUN go mod download
 # Copy backend source code
 COPY backend/. .
 
-# Build the Go server
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /portfolio ./cmd/server
+# Build the Go server.
+# Use -mod=mod so missing go.sum checksums are resolved during container build.
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=mod -ldflags="-w -s" -o /portfolio ./cmd/server
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM alpine:3.19
