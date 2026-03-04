@@ -23,6 +23,7 @@ export function PageOverlay({ pageKey, source, onClose, onNavigate }: Props) {
   const type  = PAGE_TYPE[pageKey];
   const isDark = type === 'dark';
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   // Close on Escape, arrow keys for page navigation
   useEffect(() => {
@@ -45,6 +46,18 @@ export function PageOverlay({ pageKey, source, onClose, onNavigate }: Props) {
     overlayRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (!overlayRef.current) return;
+    overlayRef.current.scrollTop = 0;
+    setScrollProgress(0);
+  }, [pageKey]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const max = el.scrollHeight - el.clientHeight;
+    setScrollProgress(max > 0 ? el.scrollTop / max : 0);
+  };
+
   return (
     <div
       ref={overlayRef}
@@ -53,7 +66,11 @@ export function PageOverlay({ pageKey, source, onClose, onNavigate }: Props) {
       aria-modal="true"
       aria-label={`${pageKey} page`}
       tabIndex={-1}
+      onScroll={handleScroll}
     >
+      <div className={styles.scrollProgressTrack} aria-hidden="true">
+        <span className={styles.scrollProgressFill} style={{ transform: `scaleX(${scrollProgress})` }} />
+      </div>
       <div className={styles.inner}>
         {/* Top bar */}
         <div className={styles.topBar}>
@@ -79,12 +96,46 @@ export function PageOverlay({ pageKey, source, onClose, onNavigate }: Props) {
 
         {/* Page content */}
         <PageContent pageKey={pageKey} isDark={isDark} onNavigate={onNavigate} />
+        <footer className={`${styles.overlayFooter} ${isDark ? styles.overlayFooterDark : ''}`} aria-label="Site footer">
+          <div className={styles.footerTopRule} />
+          <div className={styles.footerRow}>
+            <p className={styles.footerText}>Built by Mariah Barreto · Backend, Data, and Design</p>
+            <div className={styles.footerLinks}>
+              <a href="mailto:mariahrangelbarreto@gmail.com" className={styles.footerLink}>Email</a>
+              <a href="https://www.linkedin.com/in/mariah-barreto-7a5706215/" target="_blank" rel="noreferrer" className={styles.footerLink}>LinkedIn</a>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
 }
 
 // ─── Individual page content ─────────────────────────────────────────────────
+function useScrollReveal<T extends HTMLElement>(count: number, threshold = 0.12) {
+  const refs = useRef<(T | null)[]>([]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add(styles.revealVisible);
+          observer.unobserve(entry.target);
+        });
+      },
+      { threshold, rootMargin: '0px 0px -8% 0px' }
+    );
+
+    refs.current.slice(0, count).forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [count, threshold]);
+
+  return refs;
+}
 
 function PageContent({ pageKey, isDark, onNavigate }: {
   pageKey: NonNullable<PageKey>;
@@ -115,6 +166,9 @@ function HomePage({ onNavigate }: { onNavigate: (k: PageKey) => void }) {
   ];
   return (
     <div>
+      <div className={styles.aboutHero}>
+        <img src="/portrait.png" alt="Mariah Barreto portrait" className={styles.aboutPortrait} />
+      </div>
       <p className={styles.tag}>// ABOUT ME</p>
       <h1 className={styles.h1}>Hello,<br />I'm <em>Mariah.</em></h1>
       <div className={styles.rule} />
@@ -157,7 +211,7 @@ const PROJECTS: DevLabProject[] = [
     n: '01',
     org: 'Jeeves',
     role: 'Tech Intern — Strategy & Ops',
-    date: '2025-Present',
+    date: 'Internship',
     summary: 'Built internal backend tooling and automation systems supporting global financial operations.',
     highlights: [
       'Reduced 10+ hours/week of manual reporting via reproducible Python (pandas) pipelines.',
@@ -171,7 +225,7 @@ const PROJECTS: DevLabProject[] = [
     n: '02',
     org: 'Stone Co',
     role: 'Software Engineering Intern — Backend',
-    date: '2025',
+    date: 'Internship',
     summary: 'Built a production-grade Go service automating government-mandated financial reporting.',
     highlights: [
       'Replaced multi-day manual workflows with compliant reports generated in hours.',
@@ -224,21 +278,7 @@ const PROJECTS: DevLabProject[] = [
 ];
 
 function DevLabPage() {
-  const cardRefs = useRef<(HTMLElement | null)[]>([]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach(e => {
-        if (e.isIntersecting) {
-          (e.target as HTMLElement).style.opacity = '1';
-          (e.target as HTMLElement).style.transform = 'translateY(0)';
-        }
-      }),
-      { threshold: 0.1 }
-    );
-    cardRefs.current.forEach(el => el && observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
+  const cardRefs = useScrollReveal<HTMLElement>(PROJECTS.length, 0.1);
 
   return (
     <div>
@@ -251,8 +291,8 @@ function DevLabPage() {
           <article
             key={p.n}
             ref={el => { cardRefs.current[i] = el; }}
-            className={`${styles.card} ${styles.devLabCard}`}
-            style={{ '--bar': p.c, opacity: 0, transform: 'translateY(18px)', transition: 'opacity 0.5s ease, transform 0.5s ease', transitionDelay: `${i * 80}ms` } as React.CSSProperties}
+            className={`${styles.card} ${styles.devLabCard} ${styles.revealItem}`}
+            style={{ '--bar': p.c, '--reveal-delay': `${i * 80}ms` } as React.CSSProperties}
           >
             <div className={styles.devLabCardTop}>
               <div className={styles.cardNum} style={{ color: p.c }}>{p.n}</div>
@@ -317,6 +357,22 @@ const PORTFOLIO_SECTIONS: StudioItem[] = [
   },
   {
     n: '02',
+    t: 'Document Design · Brazil Conference',
+    d: 'Document layout and visual communication pieces for Brazil Conference initiatives.',
+    tags: ['Canva', 'Figma (5+ years)', 'Document Design', 'AI4GOOD'],
+    focus: [
+      'Professional formatting for stakeholder-ready communication',
+      'Improved readability through spacing, contrast, and structure',
+    ],
+    c: '#c8744a',
+    kind: 'single',
+    frameMode: 'phone',
+    theme: 'paper',
+    layout: 'right',
+    frames: [{ label: 'Cartilha do Projetista - AI4GOOD', src: '/studio/Cartilha do Projetista - AI4GOOD.pdf', format: 'a4' }],
+  },
+  {
+    n: '03',
     t: 'App Design for Innovation Challenge',
     d: '5-frame app flow carousel: onboarding, dashboard, learning, quiz, and ranking screens.',
     tags: ['Figma (5+ years)', 'UI/UX', 'App Flow Carousel'],
@@ -339,7 +395,7 @@ const PORTFOLIO_SECTIONS: StudioItem[] = [
     extraSingle: { label: 'App Design Documentation', src: '/studio/projectsaber.pdf', format: 'a4' },
   },
   {
-    n: '03',
+    n: '04',
     t: 'Explaining Code',
     d: 'I use design to explain complex topics from my previous projects to different audiences, making technical decisions easier to understand.',
     tags: ['Explainable Tech', 'Code Explainers', 'Carousel'],
@@ -360,25 +416,26 @@ const PORTFOLIO_SECTIONS: StudioItem[] = [
     ],
   },
   {
-    n: '04',
-    t: 'Document Design · Brazil Conference',
-    d: 'Document layout and visual communication pieces for Brazil Conference initiatives.',
-    tags: ['Canva', 'Figma (5+ years)', 'Document Design'],
+    n: '05',
+    t: 'Document Design · Meta Consultoria',
+    d: 'Editorial layout for the Academia de Inovacao edital, with structured sections and clear visual hierarchy for applications and program communication.',
+    tags: ['Document Design', 'Meta Consultoria', 'Canva', 'Editorial Layout'],
     focus: [
-      'Professional formatting for stakeholder-ready communication',
-      'Improved readability through spacing, contrast, and structure',
+      'Organized long-form content into scan-friendly sections',
+      'Balanced typography, spacing, and contrast for readability',
     ],
     c: '#c8744a',
     kind: 'single',
     frameMode: 'phone',
     theme: 'paper',
-    layout: 'right',
-    frames: [{ label: 'Brazil Conference Document' }],
+    layout: 'left',
+    frames: [{ label: 'Academia de Inovacao Edital', src: '/studio/Edital da Academia de Inovação.pdf', format: 'a4' }],
   },
 ];
 
 function StudioPage() {
   const [zoomFrame, setZoomFrame] = useState<ZoomFrame | null>(null);
+  const sectionRefs = useScrollReveal<HTMLElement>(PORTFOLIO_SECTIONS.length, 0.08);
   const openZoom = (frame?: StudioFrame) => {
     if (!frame?.src) return;
     setZoomFrame({
@@ -398,18 +455,21 @@ function StudioPage() {
         Proficient in Canva and 5+ years of experience with Figma, plus documentation and slide design workflows.
       </p>
       <div className={styles.portfolioFlow}>
-        {PORTFOLIO_SECTIONS.map((p) => (
+        {PORTFOLIO_SECTIONS.map((p, i) => (
           <section
             key={p.n}
+            ref={el => { sectionRefs.current[i] = el; }}
             className={[
               styles.designStrip,
               p.layout === 'right' ? styles.designStripAlt : '',
               p.frameMode === 'wide' ? styles.designStripWide : '',
               p.frameMode === 'meta' ? styles.designStripMeta : '',
               styles[`theme_${p.theme}`],
+              styles.revealItem,
             ].filter(Boolean).join(' ')}
+            style={{ '--reveal-delay': `${i * 90}ms` } as React.CSSProperties}
           >
-            <div className={styles.designMeta}>
+            <div className={`${styles.designMeta} ${['01', '05'].includes(p.n) ? styles.metaDocBlue : ''}`}>
               <div className={styles.cardNum} style={{ color: p.c }}>{p.n}</div>
               <div className={styles.cardTitle}>{p.t}</div>
               <div className={styles.cardBody}>{p.d}</div>
@@ -432,7 +492,7 @@ function StudioPage() {
             {p.kind === 'carousel'
               ? <StudioCarousel frames={p.frames} frameMode={p.frameMode ?? 'phone'} onZoom={openZoom} />
               : (
-                <div className={styles.singleShowcase}>
+                <div className={`${styles.singleShowcase} ${p.frames[0]?.format === 'a4' ? styles.singleShowcaseA4 : ''}`}>
                   <StudioSingle frame={p.frames[0]} onZoom={openZoom} />
                 </div>
               )}
@@ -635,13 +695,23 @@ function StudioSingle({ frame, onZoom }: { frame?: StudioFrame; onZoom: (frame?:
       ) : (
         frame.label
       )}
-      {frame.src && (
+      {frame.src && !isPdf && (
         <button
           type="button"
           className={styles.zoomHitArea}
           onClick={() => onZoom(frame)}
           aria-label={`Zoom ${frame.label}`}
         />
+      )}
+      {frame.src && isPdf && (
+        <button
+          type="button"
+          className={styles.cornerChip}
+          onClick={() => onZoom(frame)}
+          aria-label={`Zoom ${frame.label}`}
+        >
+          OPEN ↗
+        </button>
       )}
     </div>
   );
@@ -657,6 +727,10 @@ type InnovationItem = {
   highlights: string[];
   tags: string[];
   c: string;
+  resource?: {
+    label: string;
+    href: string;
+  };
 };
 
 const INNOVATION_PROJECTS: InnovationItem[] = [
@@ -673,6 +747,10 @@ const INNOVATION_PROJECTS: InnovationItem[] = [
     ],
     tags: ['Innovation Strategy', 'Renewable Energy', 'Startup Consulting', 'Team Leadership'],
     c: 'var(--gold)',
+    resource: {
+      label: 'View Academia de Inovacao Edital',
+      href: '/studio/Edital da Academia de Inovação.pdf',
+    },
   },
   {
     n: '02',
@@ -711,21 +789,8 @@ const INNOVATION_AWARDS = [
 ];
 
 function InnovationPage() {
-  const cardRefs = useRef<(HTMLElement | null)[]>([]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => entries.forEach(e => {
-        if (e.isIntersecting) {
-          (e.target as HTMLElement).style.opacity = '1';
-          (e.target as HTMLElement).style.transform = 'translateY(0)';
-        }
-      }),
-      { threshold: 0.08 }
-    );
-    cardRefs.current.forEach(el => el && observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
+  const cardRefs = useScrollReveal<HTMLElement>(INNOVATION_PROJECTS.length, 0.08);
+  const awardRefs = useScrollReveal<HTMLElement>(INNOVATION_AWARDS.length, 0.05);
 
   return (
     <div>
@@ -738,8 +803,8 @@ function InnovationPage() {
           <article
             key={p.n}
             ref={el => { cardRefs.current[i] = el; }}
-            className={`${styles.card} ${styles.cardDark} ${styles.innovationCard}`}
-            style={{ '--bar': p.c, opacity: 0, transform: 'translateY(18px)', transition: 'opacity 0.5s ease, transform 0.5s ease', transitionDelay: `${i * 100}ms` } as React.CSSProperties}
+            className={`${styles.card} ${styles.cardDark} ${styles.innovationCard} ${styles.revealItem}`}
+            style={{ '--bar': p.c, '--reveal-delay': `${i * 100}ms` } as React.CSSProperties}
           >
             <div className={styles.innovationCardTop}>
               <div className={styles.cardNum} style={{ color: p.c }}>{p.n}</div>
@@ -752,6 +817,16 @@ function InnovationPage() {
               {p.highlights.map((h) => <li key={h}>{h}</li>)}
             </ul>
             <div className={styles.tags}>{p.tags.map((t) => <span key={t} className={`${styles.tag2} ${styles.tag2Dark}`}>{t}</span>)}</div>
+            {p.resource && (
+              <a
+                href={p.resource.href}
+                target="_blank"
+                rel="noreferrer"
+                className={styles.innovationResource}
+              >
+                {p.resource.label} ↗
+              </a>
+            )}
           </article>
         ))}
       </div>
@@ -762,7 +837,12 @@ function InnovationPage() {
         </div>
         <div className={styles.awardsGrid}>
           {INNOVATION_AWARDS.map((award, idx) => (
-            <article key={award} className={styles.awardCard}>
+            <article
+              key={award}
+              ref={(el) => { awardRefs.current[idx] = el; }}
+              className={`${styles.awardCard} ${styles.revealItem}`}
+              style={{ '--reveal-delay': `${idx * 70}ms` } as React.CSSProperties}
+            >
               <span className={styles.awardBadge}>#{idx + 1}</span>
               <p>{award}</p>
             </article>
@@ -780,6 +860,7 @@ function LibraryPage() {
     { role: 'Software Engineering Intern · Backend · Stone Co', date: 'May 2025 – Aug 2025', desc: 'Built Go Cronjob + REST APIs for reporting automation, developed BigQuery pipelines, and improved reliability/observability.', color: 'var(--mint)' },
     { role: 'B.S. Computer Engineering · University of South Florida', date: 'Expected 2028', desc: 'GPA 3.9 · Judy Genshaft Honors College.', color: 'var(--gold)' },
   ];
+  const itemRefs = useScrollReveal<HTMLDivElement>(exp.length, 0.12);
   return (
     <div>
       <p className={styles.tag}>// LIBRARY</p>
@@ -787,8 +868,13 @@ function LibraryPage() {
       <div className={styles.rule} />
       <p className={styles.lead}>Experience, education, projects, leadership, and technical skills from my resume.</p>
       <div className={styles.timeline}>
-        {exp.map(e => (
-          <div key={e.role} className={styles.tlItem} style={{ borderColor: e.color }}>
+        {exp.map((e, i) => (
+          <div
+            key={e.role}
+            ref={(el) => { itemRefs.current[i] = el; }}
+            className={`${styles.tlItem} ${styles.revealItem}`}
+            style={{ borderColor: e.color, '--reveal-delay': `${i * 90}ms` } as React.CSSProperties}
+          >
             <div className={styles.tlRole}>{e.role}</div>
             <div className={styles.tlDate}>{e.date}</div>
             <div className={styles.tlDesc}>{e.desc}</div>
@@ -840,8 +926,7 @@ function TownHallPage() {
       )}
       <div className={styles.socialRow}>
         <a href="mailto:mariahrangelbarreto@gmail.com" className={styles.socialLink}>mariahrangelbarreto@gmail.com ↗</a>
-        <a href="https://linkedin.com/mariahbarreto" target="_blank" rel="noreferrer" className={styles.socialLink}>linkedin.com/mariahbarreto ↗</a>
-        <a href="tel:+16562126623" className={styles.socialLink}>+1 (656) 212-6623 ↗</a>
+        <a href="https://www.linkedin.com/in/mariah-barreto-7a5706215/" target="_blank" rel="noreferrer" className={styles.socialLink}>linkedin.com/in/mariah-barreto-7a5706215 ↗</a>
       </div>
     </div>
   );

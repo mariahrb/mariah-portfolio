@@ -49,9 +49,9 @@ const DLG_H_MIN = 88;
 const DLG_H_MAX = 180;
 const DLG_PAD_X = 12;
 const DLG_PAD_Y = 10;
-const PROMPT_H = 22;
-const PROMPT_MIN_W = 112;
-const PROMPT_MAX_W = 300;
+const PROMPT_H = 18;
+const PROMPT_MIN_W = 88;
+const PROMPT_MAX_W = 230;
 
 // Pixel colours
 const C = {
@@ -564,11 +564,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private drawBuilding(b: Building) {
-    const g  = this.add.graphics();
+    const g = this.add.graphics();
+
     const bx = b.tx * T;
     const by = b.ty * T;
     const bw = b.tw * T;
     const bh = b.th * T;
+
+    const texRng = this.rng(((b.tx * 73856093) ^ (b.ty * 19349663) ^ (b.tw * 83492791)) & 0x7fffffff);
+
     const accents: Record<string, number> = {
       home: 0xd86a4f,
       devlab: 0x66b5ff,
@@ -579,169 +583,169 @@ export class GameScene extends Phaser.Scene {
     };
     const accent = accents[b.id] ?? 0xe6d6a8;
 
-    // ── Drop shadow ──
-    g.fillStyle(0x000000, 0.18);
-    g.fillRect(bx + 6, by + bh - 4, bw + 4, 12);
-
-    // ── Foundation (stone base, 8px tall) ──
     const fH = 10;
-    g.fillStyle(0x9ca1b3);
-    g.fillRect(bx, by + bh - fH, bw, fH);
-    // Stone lines
-    g.fillStyle(0x6c7286, 0.65);
-    for (let sx = bx; sx < bx + bw; sx += 14) {
-      g.fillRect(sx, by + bh - fH, 1, fH);
-    }
-    g.fillRect(bx, by + bh - fH + 5, bw, 1);
+    const wallH = bh - T - fH;
 
-    // ── Walls ──
-    const wallH = bh - T - fH;   // from roof base to foundation
-    g.fillGradientStyle(b.wallA, b.wallA, b.wallB, b.wallB, 1);
+    // ─────────────────────────────────────────────
+    // ORGANIC ROOF & WALL VARIATION (Brazilian style)
+    // ─────────────────────────────────────────────
+
+    const roofMid = bx + bw / 2;
+    const roofPeak = by - 2 + texRng() * 6; // slightly sloped clay roof
+    const roofBaseY = by + T + 2;
+
+    // Add slight curve to roof (simulated with extra triangles)
+    g.fillStyle(b.roofA);
+    g.fillTriangle(roofMid, roofPeak, bx - 10, roofBaseY, bx + bw + 10, roofBaseY);
+
+    g.fillStyle(b.roofB, 0.5);
+    g.fillTriangle(roofMid, roofPeak, roofMid, roofBaseY, bx + bw + 10, roofBaseY);
+
+    // ─────────────────────────────────────────────
+    // FOUNDATION (stone) & WALLS (pastel Brazilian vibe)
+    // ─────────────────────────────────────────────
+
+    g.fillStyle(0x8f95a8); // stone base
+    g.fillRect(bx, by + bh - fH, bw, fH);
+
+    const wallTop = this.tint(b.wallA, 0.1);
+    const wallBottom = this.tint(b.wallB, -0.05);
+
+    g.fillGradientStyle(wallTop, wallTop, wallBottom, wallBottom, 1);
     g.fillRect(bx, by + T, bw, wallH);
 
-    // ── Wood plank texture ──
-    g.fillStyle(0x000000, 0.08);
-    for (let px2 = bx + 10; px2 < bx + bw - 6; px2 += 10) {
-      g.fillRect(px2, by + T, 1, wallH);
-    }
-    g.fillStyle(0xffffff, 0.08);
-    for (let py2 = by + T + 8; py2 < by + T + wallH - 4; py2 += 10) {
-      g.fillRect(bx + 4, py2, bw - 8, 1);
+    // Subtle wall texture
+    g.fillStyle(0xffffff, 0.05);
+    for (let gy = by + T + 8; gy < by + T + wallH - 6; gy += 12) {
+      const segX = bx + 6 + ((texRng() * (bw - 18)) | 0);
+      const segW = 4 + ((texRng() * 6) | 0);
+      g.fillRect(segX, gy, segW, 1);
     }
 
-    // ── Wall shading (right side darker) ──
-    g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.14, 0.14);
-    g.fillRect(bx + bw - 8, by + T, 8, wallH);
-    g.fillStyle(accent, 0.22);
-    g.fillRect(bx + 4, by + T + 3, bw - 8, 4);
+    // Wooden beams along edges (typical rural Brazilian style)
+    g.fillStyle(this.tint(b.trim, -0.2));
+    g.fillRect(bx + 6, by + T, 4, wallH);
+    g.fillRect(bx + bw - 10, by + T, 4, wallH);
+    g.fillRect(bx, by + T, bw, 6);
+    g.fillRect(bx, by + bh - fH - 6, bw, 6);
 
-    // ── Roof base beam ──
-    g.fillStyle(b.trim);
-    g.fillRect(bx - 4, by + T - 2, bw + 8, 6);
+    // ─────────────────────────────────────────────
+    // PORCH (simple rustic wood style)
+    // ─────────────────────────────────────────────
 
-    // ── Pitched roof ──
-    const roofMid = bx + bw / 2;
-    const roofPeak = by + 2;
+    const porchW = bw * (0.45 + texRng() * 0.25);
+    const porchX = bx + (bw - porchW) / 2;
+    const porchDeckY = by + bh - fH;
+    const porchDepth = 8;
 
-    g.fillStyle(b.roofA);
+    g.fillStyle(this.tint(b.trim, -0.15));
+    g.fillRect(porchX, porchDeckY, porchW, porchDepth); // deck
+
+    // Pillars
+    const pillarTopY = by + T + 10;
+    const pillarBottomY = porchDeckY;
+    const pillarH = pillarBottomY - pillarTopY;
+    const pillarXs = [porchX + 4, porchX + porchW - 6];
+
+    for (const px of pillarXs) {
+      g.fillStyle(this.tint(b.trim, 0.3));
+      g.fillRect(px, pillarTopY, 3, pillarH);
+      g.fillStyle(this.tint(b.trim, -0.2));
+      g.fillRect(px + 3, pillarTopY, 2, pillarH);
+    }
+
+    // Small porch roof
+    g.fillStyle(this.tint(b.roofA, -0.1));
     g.fillTriangle(
-      roofMid,     roofPeak,
-      bx - 8,      by + T + 2,
-      bx + bw + 8, by + T + 2,
+      roofMid,
+      roofPeak + 18,
+      porchX - 4,
+      pillarTopY,
+      porchX + porchW + 4,
+      pillarTopY
     );
 
-    // ── Roof shading: right half darker ──
-    g.fillStyle(b.roofB, 0.55);
+    g.fillStyle(this.tint(b.roofB, -0.05), 0.5);
     g.fillTriangle(
-      roofMid,     roofPeak,
-      roofMid,     by + T + 2,
-      bx + bw + 8, by + T + 2,
+      roofMid,
+      roofPeak + 18,
+      roofMid,
+      pillarTopY,
+      porchX + porchW + 4,
+      pillarTopY
     );
 
-    // ── Roof ridge tile ──
-    g.fillStyle(b.roofB);
-    g.fillRect(roofMid - 3, roofPeak, 6, 14);
-    g.fillStyle(0x000000, 0.16);
-    const roofBaseY = by + T + 2;
-    for (let ry = roofPeak + 5; ry <= roofBaseY; ry += 4) {
-      const t = (ry - roofPeak) / (roofBaseY - roofPeak);
-      const halfW = (bw / 2 + 8) * t;
-      const lx = roofMid - halfW + 1;
-      const w = halfW * 2 - 2;
-      if (w > 0) g.fillRect(lx, ry, w, 1);
-    }
-    g.fillStyle(0xffffff, 0.11);
-    for (let rx = bx + 4; rx < bx + bw - 4; rx += 12) {
-      g.fillRect(rx, by + T - 1, 7, 1);
-    }
+    // ─────────────────────────────────────────────
+    // WINDOWS (with flower boxes, lower and with flowers)
+    // ─────────────────────────────────────────────
 
-    // ── Chimney ──
-    if (b.chimney) {
-      const cxPos = bx + bw * 0.72;
-      g.fillStyle(0x888070);
-      g.fillRect(cxPos, by - 12, 12, T + 14);
-      g.fillStyle(0x707060);
-      g.fillRect(cxPos - 2, by - 12, 16, 5);
-      g.fillStyle(0x5f5f52, 0.55);
-      for (let cy = by - 7; cy < by + T - 2; cy += 6) {
-        g.fillRect(cxPos, cy, 12, 1);
-      }
-      // Smoke puff (morning/day feel)
-      const smoke = this.add.circle(cxPos + 6, by - 16, 4, 0xd8d0c8, 0.35);
-      this.tweens.add({
-        targets: smoke, y: '-=10', alpha: 0,
-        duration: 2200, repeat: -1,
-        ease: 'Sine.easeIn', delay: Math.random() * 1500,
-      });
-    }
+    let winCount = b.tw >= 7 ? 3 : 2;
+    // Adjust window count: leave one less than calculated
+    winCount = Math.max(1, winCount - 1);
 
-    // ── Windows ──
-    const winCount = b.tw >= 7 ? 3 : 2;
     const winSpacing = bw / (winCount + 1);
+
     for (let w = 1; w <= winCount; w++) {
-      const wx  = bx + w * winSpacing - 10;
-      const wy  = by + T + 14;
-      const ww2 = 20;
-      const wh2 = 18;
+      // shift windows closer to the center
+      const wx = bx + w * winSpacing - 10;
+      const wy = by + T + 20; // lowered by +6 pixels
 
-      // Shutter
+      // window frame
       g.fillStyle(b.trim);
-      g.fillRect(wx - 4, wy - 1, 4, wh2 + 2);
-      g.fillRect(wx + ww2, wy - 1, 4, wh2 + 2);
+      g.fillRect(wx - 3, wy - 2, 26, 22);
 
-      // Window frame
+      // window trim
       g.fillStyle(0x2d2230);
-      g.fillRect(wx - 1, wy - 1, ww2 + 2, wh2 + 2);
+      g.fillRect(wx - 1, wy - 1, 22, 20);
 
-      // Glass
+      // glass
       g.fillStyle(0x8eb2eb);
-      g.fillRect(wx, wy, ww2, wh2);
+      g.fillRect(wx, wy, 20, 18);
 
-      // Cross pane
-      g.fillStyle(0x2d2230, 0.45);
-      g.fillRect(wx + ww2 / 2 - 1, wy, 2, wh2);
-      g.fillRect(wx, wy + wh2 / 2 - 1, ww2, 2);
+      // flower box base
+      const fbY = wy + 18;
+      g.fillStyle(0x5aa357);
+      g.fillRect(wx, fbY, 20, 4);
 
-      // Window reflection
-      g.fillStyle(0xffffff, 0.25);
-      g.fillRect(wx + 2, wy + 2, 5, 3);
-      g.fillStyle(accent, 0.22);
-      g.fillRect(wx + 1, wy + wh2 - 4, ww2 - 2, 3);
-
+      // add small flowers (dots)
+      const flowerColors = [0xff5c5c, 0xffc85c, 0xff8c8c]; // reds/oranges
+      for (let f = 0; f < 5; f++) {
+        const fx = wx + 2 + Math.floor(texRng() * 16);
+        const fy = fbY + 1; 
+        const fColor = flowerColors[Math.floor(texRng() * flowerColors.length)];
+        g.fillStyle(fColor);
+        g.fillRect(fx, fy, 2, 2);
+      }
     }
 
-    // ── Door ──
+    // ─────────────────────────────────────────────
+    // DOOR (simple wooden)
+    // ─────────────────────────────────────────────
+
     const dx = bx + bw / 2 - 13;
     const dy = by + bh - fH - 32;
-    // Door frame
+
     g.fillStyle(b.trim);
     g.fillRect(dx - 3, dy - 3, 29, 35);
-    // Door body
+
     g.fillStyle(0x55331c);
     g.fillRect(dx, dy, 26, 32);
-    // Door panel detail
-    g.fillStyle(0x7a4d2a, 0.55);
-    g.fillRect(dx + 3, dy + 3, 9, 12);
-    g.fillRect(dx + 14, dy + 3, 9, 12);
-    g.fillRect(dx + 3, dy + 18, 20, 10);
-    // Door knob
+
     g.fillStyle(0xe0b830);
     g.fillCircle(dx + 20, dy + 16, 3);
-    // Door step
-    g.fillStyle(0xa1a7b8);
-    g.fillRect(dx - 6, dy + 32, 38, 5);
-    g.fillStyle(0x6d5438);
-    g.fillRect(dx - 8, dy + 37, 42, 3);
 
-    // ── Building sign ──
+    // ─────────────────────────────────────────────
+    // BUILDING LABEL
+    // ─────────────────────────────────────────────
+
     this.add.text(bx + bw / 2, by + T + wallH / 2 + 8, b.label, {
       fontFamily: '"Press Start 2P"',
-      fontSize:   '5px',
-      color:      `#${accent.toString(16).padStart(6, '0')}`,
+      fontSize: '5px',
+      color: `#${accent.toString(16).padStart(6, '0')}`,
       backgroundColor: 'rgba(8,10,20,0.62)',
-      padding:    { x: 4, y: 2 },
+      padding: { x: 4, y: 2 },
       resolution: 2,
-    }).setOrigin(0.5).setDepth(2);
+    }).setOrigin(0.5).setDepth(4);
   }
 
   // ── PATH DECORATIONS ─────────────────────────────────────────────────────────
@@ -1131,7 +1135,7 @@ export class GameScene extends Phaser.Scene {
       const promptBg = this.promptBox.getAt(0) as Phaser.GameObjects.Rectangle;
       promptLabel.setText(label);
       const nextW = Phaser.Math.Clamp(
-        Math.ceil(promptLabel.width + 18),
+        Math.ceil(promptLabel.width + 14),
         PROMPT_MIN_W,
         PROMPT_MAX_W,
       );
@@ -1324,9 +1328,13 @@ export class GameScene extends Phaser.Scene {
 
   private pickChoice(ch: DlgChoice) {
     if (ch.action) {
+      const npcId = this.activeDlg?.tree.npcId;
       this.closeDlg();
       const [type, target] = ch.action.split(':');
-      if (type === 'open') this.time.delayedCall(200, () => this.openPage?.(target));
+      if (type === 'open') {
+        const pageKey = this.resolvePageKey(target, npcId);
+        if (pageKey) this.time.delayedCall(200, () => this.openPage?.(pageKey));
+      }
       return;
     }
     if (!ch.nextId) { this.closeDlg(); return; }
@@ -1366,10 +1374,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private buildPrompt() {
-    const bg = this.add.rectangle(0, 0, 180, PROMPT_H, 0x0e0e1c, 0.9).setStrokeStyle(1.5, 0xf0c040);
+    const bg = this.add.rectangle(0, 0, 130, PROMPT_H, 0x0e0e1c, 0.9).setStrokeStyle(1, 0xf0c040);
     const lb = this.add.text(0, 0, '', {
       fontFamily: '"Press Start 2P"',
-      fontSize: '6px',
+      fontSize: '5px',
       color: '#fff',
       resolution: 2,
     }).setOrigin(0.5);
@@ -1378,6 +1386,56 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────────────────
+
+  private tint(color: number, amount: number): number {
+    const { r, g, b } = Phaser.Display.Color.IntegerToRGB(color);
+    const t = Phaser.Math.Clamp(amount, -1, 1);
+    const mix = (v: number) =>
+      t >= 0
+        ? Math.round(v + (255 - v) * t)
+        : Math.round(v * (1 + t));
+    return Phaser.Display.Color.GetColor(
+      Phaser.Math.Clamp(mix(r), 0, 255),
+      Phaser.Math.Clamp(mix(g), 0, 255),
+      Phaser.Math.Clamp(mix(b), 0, 255),
+    );
+  }
+
+  private resolvePageKey(rawTarget: string | undefined, npcId?: string): string | null {
+    const t = (rawTarget ?? '').trim().toLowerCase();
+    const compact = t.replace(/[^a-z]/g, '');
+
+    const aliases: Record<string, string> = {
+      home: 'home',
+      about: 'home',
+      dev: 'devlab',
+      devlab: 'devlab',
+      projects: 'devlab',
+      studio: 'studio',
+      design: 'studio',
+      library: 'library',
+      resume: 'library',
+      innovation: 'innovation',
+      innovationcenter: 'innovation',
+      innovaition: 'innovation',
+      innovaitioncenter: 'innovation',
+      townhall: 'townhall',
+      contact: 'townhall',
+    };
+
+    const byTarget = aliases[t] ?? aliases[compact];
+    if (byTarget) return byTarget;
+
+    if (BUILDINGS.some((b) => b.pageKey === t)) return t;
+
+    const byNpc: Record<string, string> = {
+      'old-dev': 'devlab',
+      designer: 'studio',
+      scout: 'library',
+      sage: 'innovation',
+    };
+    return npcId ? byNpc[npcId] ?? null : null;
+  }
 
   private getBuildingMasks(pad: number) {
     return BUILDINGS.map((b) => ({
