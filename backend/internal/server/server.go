@@ -67,6 +67,10 @@ func New() *gin.Engine {
 	// ── SERVE FRONTEND BUILD ──────────────────────────────
 	// In production, Go serves the compiled React/Vite build
 	r.Static("/assets", "./frontend/dist/assets")
+	r.Static("/studio", "./frontend/dist/studio")
+	r.StaticFile("/portrait.png", "./frontend/dist/portrait.png")
+	r.StaticFile("/Mariah_Barreto_Resume.pdf", "./frontend/dist/Mariah_Barreto_Resume.pdf")
+	r.StaticFile("/mariah-valley-v3.html", "./frontend/dist/mariah-valley-v3.html")
 	r.NoRoute(func(c *gin.Context) {
 		c.File("./frontend/dist/index.html")
 	})
