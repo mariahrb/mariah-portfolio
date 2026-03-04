@@ -1,5 +1,5 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -15,8 +15,10 @@ RUN mkdir -p /app/assets \
   && if [ -f "/app/frontend/dist/Mariah_Barreto_Resume.pdf" ]; then cp "/app/frontend/dist/Mariah_Barreto_Resume.pdf" "/app/assets/resume.pdf"; fi
 
 # Build the Go server with deterministic module resolution.
-# Build with single-package parallelism to reduce memory pressure on small builders.
-RUN CGO_ENABLED=0 GOOS=linux GOMAXPROCS=1 go build -p=1 -mod=readonly -ldflags="-w -s" -o /portfolio ./cmd/server
+# Use lower-memory compiler settings for constrained CI builders.
+# "nomsgpack" drops optional Gin msgpack binding to reduce compile surface.
+RUN CGO_ENABLED=0 GOOS=linux GOMAXPROCS=1 GOMEMLIMIT=512MiB \
+  go build -v -p=1 -tags=nomsgpack -mod=readonly -ldflags="-w -s" -o /portfolio ./cmd/server
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM alpine:3.19
