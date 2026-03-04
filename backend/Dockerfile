@@ -10,9 +10,14 @@ RUN go mod download
 # Copy backend source code
 COPY backend/. .
 
+# Ensure resume asset path exists for API route /api/v1/resume
+RUN mkdir -p /app/assets \
+  && if [ -f "/app/frontend/dist/Mariah_Barreto_Resume.pdf" ]; then cp "/app/frontend/dist/Mariah_Barreto_Resume.pdf" "/app/assets/resume.pdf"; fi
+
 # Build the Go server.
 # Use -mod=mod so missing go.sum checksums are resolved during container build.
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=mod -ldflags="-w -s" -o /portfolio ./cmd/server
+# Build with single-package parallelism to reduce memory pressure on small builders.
+RUN CGO_ENABLED=0 GOOS=linux GOMAXPROCS=1 go build -p=1 -mod=mod -ldflags="-w -s" -o /portfolio ./cmd/server
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM alpine:3.19
