@@ -41,8 +41,3 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
-
-# Go
-go.sum
-go.mod
-bin/
