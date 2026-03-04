@@ -2,10 +2,15 @@
 FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
-COPY go.mod go.sum ./
+
+# Copy only Go module files from backend
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-COPY . .
+# Copy backend source code
+COPY backend/. .
+
+# Build the Go server
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /portfolio ./cmd/server
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
@@ -14,10 +19,11 @@ FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
+# Copy Go binary and assets
 COPY --from=builder /portfolio .
 COPY --from=builder /app/assets ./assets
 
-# Copy frontend build (produced by `npm run build` in CI)
+# Copy frontend build if you produced it in CI
 COPY --from=builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 8080
